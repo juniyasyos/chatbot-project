@@ -1,6 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import dotenv from "dotenv";
 import {
   ChakraProvider,
   Flex,
@@ -13,27 +11,36 @@ import {
   Spinner,
 } from "@chakra-ui/react";
 
-const geminiAPIKey = "AIzaSyCXnicljXsjQrxiMwXET7p0xMwjT8Kj3HM";
-const genAI = new GoogleGenerativeAI(geminiAPIKey);
-
 const parseMarkdown = (text) => {
   const markdownRules = [
-    [/##\s(.*?)\n/g, "<h2>$1</h2>"],
-    [/###\s(.*?)\n/g, "<h3>$1</h3>"],
+    [/^######\s(.*?)\n/gm, "<h6>$1</h6>"],
+    [/#####\s(.*?)\n/gm, "<h5>$1</h5>"],
+    [/####\s(.*?)\n/gm, "<h4>$1</h4>"],
+    [/###\s(.*?)\n/gm, "<h3>$1</h3>"],
+    [/##\s(.*?)\n/gm, "<h2>$1</h2>"],
+    [/#\s(.*?)\n/gm, "<h1>$1</h1>"],
     [/\*\*(.*?)\*\*/g, "<strong>$1</strong>"],
     [/\*(.*?)\*/g, "<em>$1</em>"],
+    [/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>'],
+    [/\!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" />'],
     [
-      /([^:\n]+)\n((?:\s*[*-]\s[^\n]+\n)+)/g,
-      (match, p1, p2) => {
-        const items = p2
+      /(^\s*[*+-]\s[^\n]+\n)+/gm,
+      (match) => {
+        const items = match
           .trim()
           .split("\n")
-          .map((item) => `<li>${item.replace(/^\s*[*-]\s/, "")}</li>`)
+          .map((item) => `<li>${item.replace(/^\s*[*+-]\s/, "")}</li>`)
           .join("");
-        return `<p><strong>${p1}</strong></p><ul>${items}</ul>`;
+        return `<ul>${items}</ul>`;
       },
-    ], // List
-    [/^\*\s(.*?):\s(.*)$/gm, "<p><strong>$1</strong> $2</p>"],
+    ],
+    [/^\>\s?(.*)\n/gm, "<blockquote>$1</blockquote>"],
+    [
+      /```([\s\S]*?)```/g,
+      (match, p1) => `<pre><code>${p1.trim()}</code></pre>`,
+    ],
+    [/`(.*?)`/g, "<code>$1</code>"],
+    [/([^\n]+)\n/g, "<p>$1</p>"],
     [/\n/g, "<br />"],
   ];
 
@@ -63,36 +70,10 @@ const Chatbot = () => {
 
   // Surprise questions
   const surpriseOptions = [
-    "Apa fungsi utama dari perpustakaan?",
-    "Bagaimana cara mengakses perpustakaan digital?",
-    "Apa perbedaan antara perpustakaan umum dan perpustakaan akademik?",
-    "Apa saja manfaat membaca di perpustakaan?",
-    "Bagaimana cara mencari buku di perpustakaan?",
-    "Apa itu katalog perpustakaan?",
-    "Bagaimana cara menjadi anggota perpustakaan?",
-    "Apa itu ISBN dan bagaimana cara menemukannya di buku?",
-    "Bagaimana cara meminjam buku dari perpustakaan?",
-    "Apa saja peraturan umum di perpustakaan?",
-    "Bagaimana cara mengembalikan buku perpustakaan?",
-    "Apa yang harus dilakukan jika buku perpustakaan hilang?",
-    "Apa itu perpustakaan keliling?",
-    "Bagaimana cara mengajukan permintaan buku baru di perpustakaan?",
-    "Apa itu layanan peminjaman antar perpustakaan?",
-    "Bagaimana cara menemukan jurnal ilmiah di perpustakaan?",
-    "Apa yang dimaksud dengan bibliografi?",
-    "Apa itu perpustakaan digital dan apa keuntungannya?",
-    "Bagaimana cara menggunakan sistem pencarian online di perpustakaan?",
-    "Apa yang dimaksud dengan literasi informasi?",
-    "Bagaimana cara merawat buku agar tahan lama?",
-    "Apa itu Dewey Decimal Classification?",
-    "Bagaimana cara menggunakan perpustakaan selama pandemi?",
-    "Apa saja fasilitas yang biasanya ada di perpustakaan modern?",
-    "Bagaimana cara mencari referensi untuk tugas kuliah di perpustakaan?",
-    "Apa itu perpustakaan khusus?",
-    "Bagaimana cara mengikuti acara atau workshop di perpustakaan?",
-    "Apa itu perpustakaan anak dan apa manfaatnya?",
-    "Bagaimana sejarah perpustakaan pertama di dunia?",
-    "Apa saja layanan tambahan yang biasanya disediakan oleh perpustakaan?",
+    "Kamu ini apa?",
+    "Kamu dibuat oleh siapa dan untuk apa?",
+    "Pada Model ini, kamu difokuskan untuk apa?",
+    "kode ini dibuat untuk apa?",
   ];
 
   // Selects a random surprise question
@@ -119,29 +100,27 @@ const Chatbot = () => {
     setIsTyping(true);
 
     try {
-      // const response = await fetch("http://localhost:4100/gemini", {
-      //     method: "POST",
-      //     headers: { "Content-Type": "application/json" },
-      //     body: JSON.stringify({ history: chatHistory, message }),
-      // });
+      const response = await fetch("https://337rh1gbac.execute-api.us-east-1.amazonaws.com/lambda-gemini-api", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message,
+          history: chatHistory.slice(-5),
+        }),
+      });
 
-      const formattedHistory = chatHistory.map((item) => ({
-        role: item.role,
-        parts: [{ text: item.parts[0].text }],
-      }));
+      if (!response.ok) {
+        const errorData = await response.json(); 
+        throw new Error(errorData.error || "Network response error.");
+      }
 
-      // Mendapatkan model yang akan digunakan
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      const chat = model.startChat({ history: formattedHistory });
-
-      // Kirim pesan ke model dan tunggu responsnya
-      const result = await chat.sendMessage(message);
-      const response = await result.response;
-      const text = response.text();
+      // Asumsi server mengembalikan JSON
+      const data = await response.json();
+      const responseText = data.message;
 
       setChatHistory((prevHistory) => [
         ...prevHistory,
-        { role: "model", parts: [{ text }] },
+        { role: "model", parts: [{ text: responseText }] },
       ]);
     } catch (error) {
       console.error("Error fetching response:", error);
@@ -151,52 +130,6 @@ const Chatbot = () => {
     }
   };
 
-  // // Fetches response from server with typing indicator
-  // const getResponse = async () => {
-  //     const message = userInput.trim();
-
-  //     if (!message) {
-  //         setError("Please enter a message.");
-  //         return;
-  //     }
-
-  //     setError(null);
-  //     setChatHistory((prevHistory) => [
-  //         ...prevHistory,
-  //         { role: "user", parts: [{ text: message }] },
-  //     ]);
-  //     setUserInput("");
-  //     setIsTyping(true);
-
-  //     try {
-  //         const response = await fetch("http://127.0.0.1:8000/chatbot", {
-  //             method: "POST",
-  //             headers: { "Content-Type": "application/json" },
-  //             body: JSON.stringify({
-  //                 message,
-  //                 history: chatHistory.slice(-5), // Kirim 5 pesan terakhir
-  //             }),
-  //         });
-
-  //         if (!response.ok) {
-  //             throw new Error("Network response error.");
-  //         }
-
-  //         // Asumsi server mengembalikan JSON
-  //         const data = await response.json();
-  //         const responseText = data.message; // Sesuaikan dengan struktur respons JSON
-
-  //         setChatHistory((prevHistory) => [
-  //             ...prevHistory,
-  //             { role: "model", parts: [{ text: responseText }] },
-  //         ]);
-  //     } catch (error) {
-  //         console.error("Error fetching response:", error);
-  //         setError("Something went wrong. Please try again later.");
-  //     } finally {
-  //         setIsTyping(false);
-  //     }
-  // };
   // Clears error on input change
   useEffect(() => {
     if (userInput) {
