@@ -16,8 +16,17 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_TOKEN_API_KEY);
 // Endpoint untuk menangani permintaan ke model AI
 app.post("/gemini", async (req, res) => {
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-  const history = req.body.history || [];
-
+  const history = req.body.history || [
+    {
+      role: "system",
+      content: "jelaskan tentang dirimu kamu dirancang untuk apa?",
+    },
+    {
+      role: "assistant",
+      content:
+        "Halo! Saya adalah asisten matematika virtual Anda.... Mari kita pecahkan masalah matematika bersama!",
+    },
+  ];
   // Format history untuk dikirim ke model
   const formattedHistory = history.map((item) => ({
     role: item.role,
@@ -32,11 +41,10 @@ app.post("/gemini", async (req, res) => {
     const response = await result.response;
     const text = response.text();
 
-    // Kirim respons dalam format JSON
+
     res.json({ message: text });
   } catch (error) {
     console.error("Error during AI generation:", error);
-    // Kirim respons kesalahan dalam format JSON
     res.status(500).json({ error: "Error processing your request." });
   }
 });

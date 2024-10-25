@@ -1,0 +1,60 @@
+name: Pull Request Validation and Prometheus Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+  
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20.11.1"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Lint the code
+        run: npm run lint
+        continue-on-error: false
+
+      - name: Run tests
+        run: npm run test -- --watch=false
+
+      - name: Build the application
+        run: npm run build
+
+  prometheus:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install docker-compose -y
+
+      - name: Start Prometheus with Docker Compose
+        run: |
+          docker-compose up -d
+          sleep 10 # Wait for Prometheus to start
+
+      - name: Verify Prometheus is running
+        run: |
+          curl -s http://localhost:9090/metrics | head -n 20
+
+      - name: Stop Prometheus and clean up
+        run: docker-compose down

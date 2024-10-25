@@ -100,7 +100,7 @@ const Chatbot = () => {
     setIsTyping(true);
 
     try {
-      const response = await fetch("https://0fomkl04d9.execute-api.us-east-1.amazonaws.com/gemini-response", {
+      const response = await fetch("http://localhost:4100/gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
