@@ -1,0 +1,47 @@
+name: Merge Development to Main
+
+on:
+  push:
+    branches:
+      - development
+  workflow_dispatch:
+  schedule:
+    - cron: "0 12 * * 1"
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout kode repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # Setup Git
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # Pull branch development dan main
+      - name: Fetch branches
+        run: |
+          git fetch origin development
+          git fetch origin main
+
+      # Checkout branch main
+      - name: Checkout main
+        run: git checkout main
+
+      # Merge branch development ke main
+      - name: Merge development into main
+        run: |
+          git merge --no-ff development
+
+      # Push perubahan ke main
+      - name: Push Changes
+        run: git push origin main
+
+      # (Opsional) Notifikasi jika berhasil
+      - name: Notify Success
+        run: echo "Branch 'development' successfully merged into 'main'."
