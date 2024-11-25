@@ -1,88 +1,52 @@
 import { useState, useEffect, useRef } from "react";
 import {
   ChakraProvider,
-  Flex,
   Box,
   Heading,
   Text,
   Button,
   Textarea,
-  useColorModeValue,
+  Flex,
   Spinner,
+  useColorModeValue,
 } from "@chakra-ui/react";
+import TextareaAutosize from "react-textarea-autosize"; // untuk auto-resizing textarea
 
-const parseMarkdown = (text) => {
-  const markdownRules = [
-    [/^######\s(.*?)\n/gm, "<h6>$1</h6>"],
-    [/#####\s(.*?)\n/gm, "<h5>$1</h5>"],
-    [/####\s(.*?)\n/gm, "<h4>$1</h4>"],
-    [/###\s(.*?)\n/gm, "<h3>$1</h3>"],
-    [/##\s(.*?)\n/gm, "<h2>$1</h2>"],
-    [/#\s(.*?)\n/gm, "<h1>$1</h1>"],
-    [/\*\*(.*?)\*\*/g, "<strong>$1</strong>"],
-    [/\*(.*?)\*/g, "<em>$1</em>"],
-    [/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>'],
-    [/\!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" />'],
-    [
-      /(^\s*[*+-]\s[^\n]+\n)+/gm,
-      (match) => {
-        const items = match
-          .trim()
-          .split("\n")
-          .map((item) => `<li>${item.replace(/^\s*[*+-]\s/, "")}</li>`)
-          .join("");
-        return `<ul>${items}</ul>`;
-      },
-    ],
-    [/^\>\s?(.*)\n/gm, "<blockquote>$1</blockquote>"],
-    [
-      /```([\s\S]*?)```/g,
-      (match, p1) => `<pre><code>${p1.trim()}</code></pre>`,
-    ],
-    [/`(.*?)`/g, "<code>$1</code>"],
-    [/([^\n]+)\n/g, "<p>$1</p>"],
-    [/\n/g, "<br />"],
-  ];
-
-  return {
-    __html: markdownRules.reduce(
-      (parsedText, [rule, replacement]) =>
-        parsedText.replace(rule, replacement),
-      text
-    ),
-  };
-};
-
-// Chatbot response component
+// Komponen untuk menampilkan response dari chatbot
 const ChatbotResponse = ({ content }) => (
-  <div
-    className="prose prose-sm max-w-none text-gray-800 space-y-3"
-    dangerouslySetInnerHTML={parseMarkdown(content)}
-  />
+  <Box
+    mb={2}
+    p={4}
+    borderRadius="lg"
+    bg={useColorModeValue("gray.100", "gray.700")}
+    textAlign="left"
+    alignSelf="flex-start"
+  >
+    <Text dangerouslySetInnerHTML={{ __html: content }} />
+  </Box>
 );
+
+// Surprise questions
+const surpriseOptions = [
+  "Kamu ini apa?",
+  "Kamu dibuat oleh siapa dan untuk apa?",
+  "Pada Model ini, kamu difokuskan untuk apa?",
+  "kode ini dibuat untuk apa?",
+];
+
+// Selects a random surprise question
+const handleSurprise = () => {
+  const randomIndex = Math.floor(Math.random() * surpriseOptions.length);
+  setUserInput(surpriseOptions[randomIndex]);
+};
 
 const Chatbot = () => {
   const [userInput, setUserInput] = useState("");
-  const [error, setError] = useState(null);
   const [chatHistory, setChatHistory] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
-  const textareaRef = useRef(null);
+  const [error, setError] = useState(null);
 
-  // Surprise questions
-  const surpriseOptions = [
-    "Kamu ini apa?",
-    "Kamu dibuat oleh siapa dan untuk apa?",
-    "Pada Model ini, kamu difokuskan untuk apa?",
-    "kode ini dibuat untuk apa?",
-  ];
-
-  // Selects a random surprise question
-  const handleSurprise = () => {
-    const randomIndex = Math.floor(Math.random() * surpriseOptions.length);
-    setUserInput(surpriseOptions[randomIndex]);
-  };
-
-  // Fetches response from server with typing indicator
+  // Fungsi untuk mengirimkan pesan dan mendapatkan response dari API
   const getResponse = async () => {
     const message = userInput.trim();
 
@@ -110,11 +74,10 @@ const Chatbot = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json(); 
+        const errorData = await response.json();
         throw new Error(errorData.error || "Network response error.");
       }
 
-      // Asumsi server mengembalikan JSON
       const data = await response.json();
       const responseText = data.message;
 
@@ -130,19 +93,7 @@ const Chatbot = () => {
     }
   };
 
-  // Clears error on input change
-  useEffect(() => {
-    if (userInput) {
-      setError(null);
-    }
-  }, [userInput]);
-
-  // Dynamically adjusts textarea height
-  useEffect(() => {
-    textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-  }, [userInput, chatHistory]);
-
-  // Clears input and chat history
+  // Fungsi untuk membersihkan chat
   const clearChat = () => {
     setUserInput("");
     setError(null);
@@ -152,147 +103,100 @@ const Chatbot = () => {
   return (
     <ChakraProvider>
       <Flex
-        bg="white"
-        h="100vh"
         direction="column"
-        // fo="true"
-        maxW="3xl"
-        mx="auto"
+        minHeight="100vh"
+        justify="space-between"
+        bg={useColorModeValue("white", "gray.800")}
+        p={6}
       >
         {/* Header */}
-        <Box
-          flexGrow={1}
-          flexDirection="column"
-          justifyContent="end"
-          px={6}
-          py={8}
-        >
-          <Box textAlign="center" mb={8}>
-            <Heading as="h1" size="3xl" fontWeight="bold" color="gray.800">
-              Ask Library AI Anything
-            </Heading>
-            <Text color="gray.600" mt={2}>
-              Trusted by Millions of Student & Fortune Bachelor Companies
-            </Text>
-          </Box>
+        <Box textAlign="center" mb={8}>
+          <Heading as="h1" size="2xl" fontWeight="bold" color="gray.800">
+            AI Assistant Learning Simple
+          </Heading>
+          <Text color="gray.600" mt={2}>
+            Tanyakan apa saja, saya akan menjelaskannya secara simple dan mudah dimengerti
+          </Text>
+        </Box>
 
-          {/* Chat history */}
-          <Flex
-            flexGrow={1}
-            overflowY="auto"
-            mb={20}
-            px={4}
-            flexDirection="column"
-            alignItems="center"
-            justifyContent="center"
-          >
-            {chatHistory.length === 0 ? (
+        {/* Chat History */}
+        <Box flex="1" overflowY="auto" mb={8}>
+          {chatHistory.map((chatItem, index) => (
+            <ChatbotResponse key={index} content={chatItem.parts[0].text} />
+          ))}
+          {/* Typing indicator */}
+          {isTyping && (
+            <Box
+              mb={2}
+              p={4}
+              borderRadius="lg"
+              bg={useColorModeValue("gray.100", "gray.700")}
+              textAlign="left"
+            >
+              <Spinner size="sm" color="blue.500" />
+              <Text ml={2} as="span" fontSize="sm" color="gray.600">
+                Library AI is typing...
+              </Text>
+            </Box>
+          )}
+        </Box>
+
+        {/* Input and Buttons */}
+        <Box display="flex" flexDirection="column" alignItems="center">
+          <Box width="full" bg="gray.100" p={4} borderRadius="lg" shadow="md">
+            <Flex align="center">
+              <TextareaAutosize
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                minRows={1}
+                maxRows={5}
+                placeholder="Ask me anything..."
+                style={{
+                  width: "100%",
+                  padding: "0.5rem 1rem",
+                  borderRadius: "8px",
+                  backgroundColor: "#f7fafc",
+                  resize: "none",
+                  overflow: "hidden",
+                }}
+              />
               <Button
+                ml={2}
+                onClick={getResponse}
+                disabled={!userInput.trim() || error !== null}
                 bg="blue.500"
                 color="white"
                 px={6}
-                py={3}
+                py={2}
                 borderRadius="lg"
                 fontWeight="medium"
-                onClick={handleSurprise}
                 _hover={{ bg: "blue.600" }}
               >
-                Surprise Me
+                Send
               </Button>
-            ) : (
-              chatHistory.map((chatItem, index) => (
-                <Box
-                  key={index}
-                  mb={2}
-                  p={4}
-                  borderRadius="lg"
-                  bg={
-                    chatItem.role === "user"
-                      ? "blue.100"
-                      : useColorModeValue("gray.100", "gray.700")
-                  }
-                  textAlign={chatItem.role === "user" ? "right" : "left"}
-                  alignSelf={
-                    chatItem.role === "user" ? "flex-end" : "flex-start"
-                  }
-                >
-                  <ChatbotResponse content={chatItem.parts[0].text} />
-                </Box>
-              ))
-            )}
-
-            {/* Typing indicator */}
-            {isTyping && (
-              <Box
-                mb={2}
-                p={4}
+              <Button
+                ml={2}
+                onClick={clearChat}
+                bg="gray.400"
+                color="white"
+                px={6}
+                py={2}
                 borderRadius="lg"
-                bg={useColorModeValue("gray.100", "gray.700")}
-                textAlign="left"
-                alignSelf="flex-start"
+                fontWeight="medium"
+                _hover={{ bg: "gray.500" }}
               >
-                <Spinner size="sm" color="blue.500" />
-                <Text ml={2} as="span" fontSize="sm" color="gray.600">
-                  Library AI is typing...
-                </Text>
-              </Box>
-            )}
-          </Flex>
-        </Box>
-
-        {/* Input and buttons */}
-        <Box position="fixed" bottom={0} left={0} w="full" px={6}>
-          <Box bg="gray.100" borderRadius="lg" p={4} shadow="md" display="flex">
-            <Textarea
-              ref={textareaRef}
-              value={userInput}
-              placeholder="Ask me anything..."
-              onChange={(e) => setUserInput(e.target.value)}
-              flexGrow={1}
-              px={4}
-              py={2}
-              borderRadius="lg"
-              bg="gray.200"
-              _focus={{ outline: "none" }}
-              resize="none"
-              overflow="hidden"
-              minHeight="36px"
-              mr={2}
-            />
-            <Button
-              onClick={getResponse}
-              disabled={!userInput.trim() || error !== null}
-              bg="blue.500"
-              color="white"
-              px={6}
-              py={2}
-              borderRadius="lg"
-              fontWeight="medium"
-              mr={2}
-              _hover={{ bg: "blue.600" }}
-            >
-              Send
-            </Button>
-            <Button
-              onClick={clearChat}
-              bg="gray.400"
-              color="white"
-              px={6}
-              py={2}
-              borderRadius="lg"
-              fontWeight="medium"
-              _hover={{ bg: "gray.500" }}
-            >
-              Clear
-            </Button>
+                Clear
+              </Button>
+            </Flex>
           </Box>
-        </Box>
 
-        {error && (
-          <Text color="red.600" mt={2} textAlign="center">
-            {error}
-          </Text>
-        )}
+          {/* Error message */}
+          {error && (
+            <Text color="red.600" mt={4} textAlign="center">
+              {error}
+            </Text>
+          )}
+        </Box>
       </Flex>
     </ChakraProvider>
   );
