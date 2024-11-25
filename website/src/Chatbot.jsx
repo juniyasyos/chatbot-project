@@ -13,16 +13,19 @@ import {
 import TextareaAutosize from "react-textarea-autosize"; // untuk auto-resizing textarea
 
 // Komponen untuk menampilkan response dari chatbot
-const ChatbotResponse = ({ content }) => (
+const ChatbotResponse = ({ content, timestamp, role }) => (
   <Box
-    mb={2}
+    mb={4}
     p={4}
     borderRadius="lg"
-    bg={useColorModeValue("gray.100", "gray.700")}
+    bg={role === "user" ? useColorModeValue("blue.100", "blue.600") : useColorModeValue("gray.100", "gray.700")}
     textAlign="left"
-    alignSelf="flex-start"
+    alignSelf={role === "user" ? "flex-end" : "flex-start"}
   >
     <Text dangerouslySetInnerHTML={{ __html: content }} />
+    <Text fontSize="sm" color="gray.500" mt={1}>
+      {role === "user" ? "You" : "AI"} at {timestamp}
+    </Text>
   </Box>
 );
 
@@ -56,9 +59,11 @@ const Chatbot = () => {
     }
 
     setError(null);
+    const timestamp = new Date().toLocaleString();
+
     setChatHistory((prevHistory) => [
       ...prevHistory,
-      { role: "user", parts: [{ text: message }] },
+      { role: "user", parts: [{ text: message }], timestamp },
     ]);
     setUserInput("");
     setIsTyping(true);
@@ -80,10 +85,11 @@ const Chatbot = () => {
 
       const data = await response.json();
       const responseText = data.message;
+      const responseTimestamp = new Date().toLocaleString();
 
       setChatHistory((prevHistory) => [
         ...prevHistory,
-        { role: "model", parts: [{ text: responseText }] },
+        { role: "model", parts: [{ text: responseText }], timestamp: responseTimestamp },
       ]);
     } catch (error) {
       console.error("Error fetching response:", error);
@@ -122,7 +128,12 @@ const Chatbot = () => {
         {/* Chat History */}
         <Box flex="1" overflowY="auto" mb={8}>
           {chatHistory.map((chatItem, index) => (
-            <ChatbotResponse key={index} content={chatItem.parts[0].text} />
+            <ChatbotResponse
+              key={index}
+              content={chatItem.parts[0].text}
+              timestamp={chatItem.timestamp}
+              role={chatItem.role}
+            />
           ))}
           {/* Typing indicator */}
           {isTyping && (
